@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# NOTE: data/wowf.db and data/wowf.xlsx are intentionally committed —
+# they are the deliverables and the user wants no data lost between sessions.
