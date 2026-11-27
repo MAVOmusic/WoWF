@@ -1,0 +1,4 @@
+# Development / testing only.
+# lupa runs the addon's Lua against a stubbed WoW API (tools/lua_harness).
+-r requirements.txt
+lupa>=2.0

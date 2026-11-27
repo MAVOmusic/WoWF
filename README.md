@@ -8,7 +8,8 @@ answers three questions at any level:
 3. **Where do I farm for gold, ore, cloth and fish?** → same tables, plus `ProfessionPlan`
 
 Outputs: a **SQLite database** (for queries), an **Excel workbook** (for reading and editing
-on the go), and canonical **JSON** (the actual source of truth).
+on the go), an **in-game addon** (the same plan inside the client), and canonical **JSON**
+(the actual source of truth).
 
 ---
 
@@ -28,6 +29,8 @@ python3 -c "import sqlite3; ..."       # or just open data/wowf.xlsx
 | Rebuild the database | `python3 scripts/build_db.py` |
 | Rebuild the workbook | `python3 scripts/export_xlsx.py` |
 | Apply your Excel edits | `python3 scripts/import_xlsx.py` (add `--dry-run` first) |
+| Compile addon data | `python3 scripts/build_addon_data.py` |
+| Test the addon headlessly | `python3 tools/lua_harness/run_harness.py` |
 
 ## Files
 
@@ -48,8 +51,30 @@ data/catalog/profession_plan.json  next step per profession
 data/wowf.db                       generated SQLite database
 data/wowf.xlsx                     generated workbook (12 sheets)
 
+addon/ForeverCompanion/            in-game panel: Next / Gear / Farm / Profs  (/fw)
+tools/lua_harness/                 headless WoW API stub + addon smoke test
+
 scripts/                           parse_armory · build_db · export_xlsx · import_xlsx
+                                   build_addon_data
 ```
+
+## The addon
+
+`addon/ForeverCompanion` is one small panel that shows the same plan as the workbook:
+what to equip next, where to get it, where to farm in your level band, and the next step
+for each profession. It targets **Interface 16001** — Forever 1.60.1 runs on the Midnight
+client with Mainline APIs, so Classic-era (1.12) addons do not load.
+
+```
+xcopy /E /I /Y addon\ForeverCompanion "C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\ForeverCompanion"
+```
+
+Details, commands and design constraints: [`addon/ForeverCompanion/README.md`](addon/ForeverCompanion/README.md).
+Which of your 28 existing addon folders to keep: [`docs/ADDONS.md`](docs/ADDONS.md).
+
+The addon's `Data.lua` is **generated** by `scripts/build_addon_data.py`, so it can never
+drift from the database. It is smoke-tested headlessly (27 assertions) because there is no
+game client here — that proves it boots and renders, not that it looks pretty.
 
 ## Data trust rule
 

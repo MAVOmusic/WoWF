@@ -9,6 +9,41 @@ Tags: `[data]` armory refresh · `[model]` schema/DB · `[xlsx]` workbook · `[d
 
 ---
 
+## 2026-11-27 — v0.2.0 — In-game companion
+
+Second build, same day as v0.1.0.
+
+### Added
+- `[tooling]` `addon/ForeverCompanion/` — WoW addon: `.toc` (Interface 16001), `Data.lua`
+  (generated), `Core.lua` (state, plan, slash), `UI.lua` (panel with 4 tabs), `README.md`.
+- `[tooling]` `scripts/build_addon_data.py` — compiles the JSON model into `Data.lua`;
+  added as step 4 of `scripts/refresh.sh`.
+- `[tooling]` `tools/lua_harness/` — `wow_stub.lua` (frame/fontstring/slash/API stubs) and
+  `run_harness.py` (27 assertions). All pass.
+- `[docs]` `docs/ADDONS.md` — verdicts for the 28 addon folders: what to keep, what to fold
+  into the companion, and a 5-item fold-in backlog.
+- `[tooling]` `requirements-dev.txt` — lupa for the harness.
+- `[decision]` D8–D11: Interface 16001 / Mainline APIs, generated addon data, headless
+  verification, big data addons stay separate.
+
+### Research
+- Confirmed Forever's client: **Interface 16001** (Forever 1.60.1, Midnight retail client,
+  Lua 5.1, Mainline APIs). Classic-era addons do not load on it — this changed the whole
+  implementation approach.
+- Cross-checked a public Forever addon collection (tobarisu1/wow_forever_addons) for TOC
+  conventions, event handling and the "secret values / closed combat log" constraints.
+  The addon therefore avoids the combat log and `GetItemInfo` arithmetic entirely.
+
+### Noted
+- The addon is **untested in a real client**. The harness proves it loads, renders rows and
+  that every command path runs; it cannot prove it looks right.
+
+### Next
+- One QoL fold-in from `docs/ADDONS.md` (map keybind or minimap drawer).
+- In-game layout pass once the client has loaded v0.1.0 once.
+
+---
+
 ## 2026-11-27 — v0.1.0 — Bootstrap
 
 Initial build. Day 0 of the log.

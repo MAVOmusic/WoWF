@@ -5,6 +5,34 @@ One entry per shipped increment. Newest first. Never delete.
 
 ---
 
+## v0.2.0 — 2026-11-27 — "In-game companion"
+
+**Status:** current · **Character level:** 23 · **Addon version:** 0.1.0
+
+### What this version adds
+- **Forever Companion addon** (`addon/ForeverCompanion/`): one panel, four tabs
+  (Next / Gear / Farm / Profs), slash command `/fw`, saved tick-offs, level-drift warning.
+  Targets Interface **16001** (Forever 1.60.1 / Midnight client, Mainline APIs, Lua 5.1).
+- **Data compiler** (`scripts/build_addon_data.py`): JSON → `Data.lua`, runs as step 4 of
+  `refresh.sh`. The addon can never drift from the DB.
+- **Headless harness** (`tools/lua_harness/`): stubbed WoW API + 27 assertions covering
+  load, events, every slash command, tick-off persistence, level drift, live-vs-snapshot
+  gear and empty slots.
+- **`docs/ADDONS.md`**: keep / fold verdict for the 28 addon folders in the client.
+
+### Known limitations
+- The addon has **not been run in a real client** (no game here). Layout, fonts and
+  backdrop behaviour are unverified; logic and API surface are harness-tested.
+- Panel is chat-and-list only: no minimap button, no tooltips, no keybinds yet.
+- `GetItemInfo` is deliberately avoided (Midnight "secret values"); live gear is read by
+  parsing `GetInventoryItemLink`.
+
+### Next version target (v0.3.0)
+- One QoL fold-in from the backlog (map keybind or minimap drawer).
+- In-game feedback pass and layout fixes.
+
+---
+
 ## v0.1.0 — 2026-11-27 — "Bootstrap: character mapping"
 
 **Status:** current · **Character level:** 23 · **Armory snapshot:** 2026-11-27
