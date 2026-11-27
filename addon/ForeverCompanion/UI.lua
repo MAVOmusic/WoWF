@@ -1,7 +1,10 @@
 -- ForeverCompanion / UI.lua
--- One movable panel with four tabs: Next / Gear / Farm / Profs.
--- Built from plain frames and font strings on purpose: no XML templates beyond
--- the standard close button, so it survives client patches.
+-- One movable panel with four tabs: Next / Gear / Farm / Profs, plus a minimap
+-- button so there is always something to click.
+--
+-- Built from plain frames and font strings on purpose: no XML, no template
+-- chains that break on patch day. Every risky API call is wrapped in pcall and
+-- the failure is reported in chat instead of vanishing.
 
 local FC = ForeverCompanion
 local Data = ForeverCompanionData
@@ -10,6 +13,7 @@ local WIDTH, HEIGHT = 448, 560
 local ROW_HEIGHT = 36
 local ROW_INDENT = 10
 local TAB_HEIGHT = 22
+local ICON = "Interface\\Icons\\INV_Misc_Map_01"
 
 local PRIORITY_COLOUR = {
 	[1] = "|cffff5555",
@@ -23,7 +27,10 @@ local WHITE = "|cffffffff"
 local GREEN = "|cff33ff99"
 local GOLD = "|cffffd200"
 
--- inventory slot ids (stable across clients)
+local function DB()
+	return ForeverCompanionDB or FC:InitDB()
+end
+
 local INV_SLOT = {
 	head = 1, neck = 2, shoulder = 3, shirt = 4, chest = 5, waist = 6, legs = 7,
 	feet = 8, wrist = 9, hands = 10, ring1 = 11, ring2 = 12, trinket1 = 13,
@@ -49,7 +56,8 @@ local function LiveItemName(slot)
 	if not ok or type(link) ~= "string" then
 		return nil
 	end
-	return link:match("%[(.-)%]")
+	local name = link:match("%[(.-)%]")
+	return name
 end
 
 -- ------------------------------------------------------------------ tab data
@@ -63,14 +71,14 @@ local function NextRows()
 			where = where .. " · " .. entry.zone
 		end
 		if entry.reqLevel then
-			where = where .. " · needs " .. entry.reqLevel
+			where = where .. " · needs " .. tostring(entry.reqLevel)
 		end
 		if entry.verification and entry.verification ~= "armory" then
-			where = where .. " · " .. entry.verification
+			where = where .. " · " .. tostring(entry.verification)
 		end
 		table.insert(rows, {
 			title = colour .. "[P" .. tostring(entry.priority) .. "]|r "
-				.. WHITE .. (entry.label or entry.slot or "?") .. "|r → "
+				.. WHITE .. tostring(entry.label or entry.slot or "?") .. "|r → "
 				.. GREEN .. tostring(entry.target) .. "|r",
 			detail = GREY .. Cut(where, 96) .. "|r",
 		})
@@ -97,9 +105,7 @@ local function GearRows()
 			state = "|cffff5555EMPTY|r"
 		end
 		local detail
-		if FC:IsDone("gear:" .. tostring(slot.slot)) then
-			detail = GREY .. "checked|r"
-		elseif live and live ~= slot.name then
+		if live and slot.name and live ~= slot.name then
 			detail = GOLD .. "changed since snapshot (was " .. tostring(slot.name) .. ")|r"
 		else
 			detail = GREY .. "as of the armory snapshot|r"
@@ -122,7 +128,7 @@ local function FarmRows()
 	})
 	for _, zone in ipairs(FC:ZonesForLevel()) do
 		table.insert(rows, {
-			title = WHITE .. (zone.name or "?") .. "|r  " .. GREY
+			title = WHITE .. tostring(zone.name) .. "|r  " .. GREY
 				.. tostring(zone.levelMin) .. "-" .. tostring(zone.levelMax)
 				.. " · " .. tostring(zone.faction) .. "|r",
 			detail = GREY .. "ore: " .. Cut(zone.mining or "none", 44)
@@ -154,7 +160,7 @@ local function ProfRows()
 	if not Data then return rows end
 	for _, prof in ipairs(Data.professionPlan) do
 		table.insert(rows, {
-			title = WHITE .. (prof.profession or "?") .. "|r  " .. GREY
+			title = WHITE .. tostring(prof.profession) .. "|r  " .. GREY
 				.. tostring(prof.current) .. "/" .. tostring(prof.cap) .. "|r",
 			detail = GREY .. Cut(prof.action or "", 96) .. "|r",
 		})
@@ -164,49 +170,43 @@ end
 
 -- ------------------------------------------------------------------ panel
 
-local function EnsureBackdrop(frame)
-	if not frame.SetBackdrop then
-		return
-	end
-	frame:SetBackdrop({
-		bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-		edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-		tile = true, tileSize = 32, edgeSize = 32,
-		insets = { left = 11, right = 12, top = 12, bottom = 11 },
-	})
-end
-
-local function CreatePanel()
+local function BuildPanel()
 	local template = BackdropTemplateMixin and "BackdropTemplate" or nil
 	local frame = CreateFrame("Frame", "ForeverCompanionFrame", UIParent, template)
 	frame:SetSize(WIDTH, HEIGHT)
 	frame:SetPoint("CENTER")
-	frame:SetFrameStrata("DIALOG")
+	frame:SetFrameStrata("FULLSCREEN_DIALOG")
+	if frame.SetToplevel then frame:SetToplevel(true) end
 	frame:EnableMouse(true)
 	frame:SetMovable(true)
 	frame:SetClampedToScreen(true)
 	frame:RegisterForDrag("LeftButton")
-	EnsureBackdrop(frame)
+
+	if frame.SetBackdrop then
+		pcall(function()
+			frame:SetBackdrop({
+				bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+				edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+				tile = true, tileSize = 32, edgeSize = 32,
+				insets = { left = 11, right = 12, top = 12, bottom = 11 },
+			})
+		end)
+	end
 
 	frame:SetScript("OnDragStart", function(self) self:StartMoving() end)
 	frame:SetScript("OnDragStop", function(self)
 		self:StopMovingOrSizing()
 		local point, _, relPoint, x, y = self:GetPoint()
-		local db = ForeverCompanionDB
-		if db then
-			db.position = { point = point, relPoint = relPoint, x = x, y = y }
-		end
+		DB().position = { point = point, relPoint = relPoint, x = x, y = y }
 	end)
 
-	local db = ForeverCompanionDB
-	if db and db.position then
-		local pos = db.position
+	local saved = DB().position
+	if saved then
 		frame:ClearAllPoints()
-		frame:SetPoint(pos.point or "CENTER", UIParent, pos.relPoint or "CENTER",
-			pos.x or 0, pos.y or 0)
+		frame:SetPoint(saved.point or "CENTER", UIParent, saved.relPoint or "CENTER",
+			saved.x or 0, saved.y or 0)
 	end
 
-	-- title
 	local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	title:SetPoint("TOPLEFT", 18, -14)
 	title:SetText(GOLD .. "Forever Companion|r")
@@ -214,16 +214,12 @@ local function CreatePanel()
 
 	local subtitle = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
-	if Data then
-		subtitle:SetText(GREY .. tostring(Data.character.name) .. " · level "
-			.. tostring(Data.character.level) .. " " .. tostring(Data.character.race)
-			.. " " .. tostring(Data.character.class) .. "|r")
-	end
+	subtitle:SetText(GREY .. "loading|r")
 	frame.subtitle = subtitle
 
-	-- close button
-	if UIPanelCloseButton then
-		local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+	-- close button: the template name is a string, not a global, so always try it
+	local okClose, close = pcall(CreateFrame, "Button", nil, frame, "UIPanelCloseButton")
+	if okClose and close then
 		close:SetPoint("TOPRIGHT", -6, -6)
 		close:SetScript("OnClick", function() frame:Hide() end)
 	end
@@ -231,12 +227,11 @@ local function CreatePanel()
 		table.insert(UISpecialFrames, "ForeverCompanionFrame")
 	end
 
-	-- tabs
 	local tabs = { { key = "next", label = "Next" }, { key = "gear", label = "Gear" },
 		{ key = "farm", label = "Farm" }, { key = "profs", label = "Profs" } }
 	frame.tabButtons = {}
 	local last
-	for index, tab in ipairs(tabs) do
+	for _, tab in ipairs(tabs) do
 		local button = CreateFrame("Button", nil, frame)
 		button:SetSize(96, TAB_HEIGHT)
 		if last then
@@ -244,21 +239,25 @@ local function CreatePanel()
 		else
 			button:SetPoint("TOPLEFT", 16, -56)
 		end
-		button:SetText(tab.label)
-		local font = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-		font:SetAllPoints()
-		font:SetText(tab.label)
-		button.label = font
+		pcall(function()
+			button:SetNormalFontObject(GameFontNormal)
+		end)
+		local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+		label:SetAllPoints()
+		label:SetText(tab.label)
+		button.label = label
 		button:SetScript("OnClick", function()
 			FC.tab = tab.key
 			frame:Refresh()
 		end)
-		button:SetHighlightTexture("Interface\\PaperDollInfoFrame\\UI-Character-Tab-Highlight")
+		pcall(function()
+			button:SetHighlightTexture(
+				"Interface\\PaperDollInfoFrame\\UI-Character-Tab-Highlight")
+		end)
 		frame.tabButtons[tab.key] = button
 		last = button
 	end
 
-	-- scroll area
 	local scroll = CreateFrame("ScrollFrame", nil, frame)
 	scroll:SetPoint("TOPLEFT", 14, -84)
 	scroll:SetPoint("BOTTOMRIGHT", -32, 40)
@@ -272,13 +271,12 @@ local function CreatePanel()
 	scroll:EnableMouseWheel(true)
 	scroll:SetScript("OnMouseWheel", function(self, delta)
 		local range = self:GetVerticalScrollRange() or 0
-		local next = (self:GetVerticalScroll() or 0) - (delta * 45)
-		if next < 0 then next = 0 end
-		if next > range then next = range end
-		self:SetVerticalScroll(next)
+		local nextScroll = (self:GetVerticalScroll() or 0) - (delta * 45)
+		if nextScroll < 0 then nextScroll = 0 end
+		if nextScroll > range then nextScroll = range end
+		self:SetVerticalScroll(nextScroll)
 	end)
 
-	-- footer
 	local footer = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	footer:SetPoint("BOTTOMLEFT", 18, 16)
 	footer:SetText(GREY .. "data " .. tostring(Data and Data.generatedAt or "?")
@@ -344,9 +342,10 @@ end
 
 function FC:Toggle()
 	if not self.frame then
-		local ok, frame = pcall(CreatePanel)
+		local ok, frame = pcall(BuildPanel)
 		if not ok then
-			Print("panel failed to build (" .. tostring(frame) .. ") — chat mode still works")
+			self.lastError = tostring(frame)
+			Print("panel failed to build: " .. tostring(frame))
 			return
 		end
 		self.frame = frame
@@ -355,14 +354,71 @@ function FC:Toggle()
 		self.frame:Hide()
 	else
 		self.frame:Show()
-		self.frame:Refresh()
+		self:RefreshPanel()
 	end
 end
 
 function FC:ShowTab(tab)
 	self.tab = tab or "next"
-	if self.frame then
-		self.frame:Show()
-		self.frame:Refresh()
+	if not self.frame then
+		self:Toggle()
+		return
+	end
+	self.frame:Show()
+	self:RefreshPanel()
+end
+
+function FC:ResetPosition()
+	if not self.frame then
+		return
+	end
+	self.frame:ClearAllPoints()
+	self.frame:SetPoint("CENTER")
+end
+
+-- ------------------------------------------------------------------ minimap
+
+function FC:SyncMinimapButton()
+	local db = DB()
+	if not db.minimap then
+		if self.minimapButton then self.minimapButton:Hide() end
+		return
+	end
+	if not self.minimapButton then
+		local ok, button = pcall(function()
+			if not Minimap then
+				return nil
+			end
+			local frame = CreateFrame("Button", "ForeverCompanionMinimapButton", Minimap)
+			frame:SetSize(28, 28)
+			frame:SetFrameStrata("MEDIUM")
+			if Minimap.GetFrameLevel then
+				frame:SetFrameLevel(Minimap:GetFrameLevel() + 5)
+			end
+			frame:SetPoint("CENTER", Minimap, "CENTER", 0, -78)
+			frame:SetNormalTexture(ICON)
+			frame:SetPushedTexture(ICON)
+			frame:SetScript("OnClick", function() FC:Toggle() end)
+			frame:SetScript("OnEnter", function(self)
+				if GameTooltip then
+					GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+					GameTooltip:AddLine("Forever Companion")
+					GameTooltip:AddLine("/fw — open the plan", 1, 1, 1)
+					GameTooltip:Show()
+				end
+			end)
+			frame:SetScript("OnLeave", function()
+				if GameTooltip then GameTooltip:Hide() end
+			end)
+			return frame
+		end)
+		if ok and button then
+			self.minimapButton = button
+		elseif not ok then
+			self.lastError = tostring(button)
+		end
+	end
+	if self.minimapButton then
+		self.minimapButton:Show()
 	end
 end

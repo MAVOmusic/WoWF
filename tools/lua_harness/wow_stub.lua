@@ -11,10 +11,24 @@ Harness = {
 	unitLevel = 23,
 	links = {},
 	maxRows = 0,
+	secretToken = {},
+	returnSecret = false,
 }
 Harness.__index = Harness
 
 UISpecialFrames = {}
+GameFontNormal = {}
+GameFontHighlightSmall = {}
+GameTooltip = {
+	SetOwner = function() end,
+	AddLine = function() end,
+	Show = function() end,
+	Hide = function() end,
+}
+Minimap = {
+	GetFrameLevel = function() return 1 end,
+	GetWidth = function() return 140 end,
+}
 SlashCmdList = {}
 UIPanelCloseButton = true
 BackdropTemplateMixin = true
@@ -71,6 +85,10 @@ local function NewFrame(frameType, name, parent)
 	function frame:SetVerticalScroll(value) self.vscroll = value end
 	function frame:GetVerticalScrollRange() return self.range or 600 end
 	function frame:RegisterEvent(event) self.events[event] = true end
+	function frame:SetFrameLevel(level) self.frameLevel = level end
+	function frame:GetFrameLevel() return self.frameLevel or 1 end
+	function frame:SetNormalTexture(value) self.normalTexture = value end
+	function frame:SetPushedTexture(value) self.pushedTexture = value end
 	function frame:CreateFontString() return NewRegion("FontString") end
 	function frame:CreateTexture() return NewRegion("Texture") end
 	function frame:CreateFrame(ftype) return NewFrame(ftype) end
@@ -137,7 +155,17 @@ end
 -- API surface the addon may touch -------------------------------------------
 
 function time(t) return os.time(t) end
-function UnitLevel() return Harness.unitLevel end
+function issecretvalue(value) return value == Harness.secretToken end
+function UnitLevel()
+	if Harness.returnSecret then
+		return Harness.secretToken
+	end
+	return Harness.unitLevel
+end
+function GetAddOnMetadata(_, field)
+	if field == "Version" then return "0.1.1" end
+	return nil
+end
 function UnitName() return "Mavo Music" end
 function GetInventoryItemLink(_, slot) return Harness.links[slot] end
 function GetBuildInfo() return "1.60.1", "16001", "Sep 1 2026", 16001 end

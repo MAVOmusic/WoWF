@@ -1,20 +1,26 @@
 -- ForeverCompanion / Core.lua
 -- State, saved variables, plan logic and slash commands.
 -- UI lives in UI.lua and is optional: everything here works headless.
+--
+-- Defensive by design: the Midnight client (Interface 16001) can hand back
+-- "secret" values from unit APIs, and a single unguarded comparison inside an
+-- event handler would abort silently. Every risky call is wrapped, and the event
+-- handler always reports what went wrong instead of dying quietly.
 
 local PREFIX = "|cff33ff99Forever|r|cffffd200Companion|r: "
 
 ForeverCompanion = ForeverCompanion or {}
 local FC = ForeverCompanion
 
-FC.version = "0.1.0"
+FC.version = "0.1.1"
 FC.frame = nil
 FC.tab = "next"
+FC.lastError = nil
 
 local Data = ForeverCompanionData
 
 local function Print(msg)
-	if DEFAULT_CHAT_FRAME then
+	if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
 		DEFAULT_CHAT_FRAME:AddMessage(PREFIX .. tostring(msg))
 	else
 		print(PREFIX .. tostring(msg))
@@ -23,10 +29,29 @@ end
 FC.Print = Print
 
 local function Config(msg)
-	if DEFAULT_CHAT_FRAME then
+	if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
 		DEFAULT_CHAT_FRAME:AddMessage(PREFIX .. "|cffffffff" .. tostring(msg) .. "|r")
 	end
 end
+FC.Config = Config
+
+-- A number from a WoW API, or a fallback when the value is missing, nil, or
+-- "secret" (secret values raise as soon as you do arithmetic on them).
+local function SafeNumber(fn, fallback)
+	local ok, value = pcall(fn)
+	if not ok then
+		return fallback
+	end
+	if issecretvalue and issecretvalue(value) then
+		return fallback
+	end
+	local okNumber, number = pcall(tonumber, value)
+	if okNumber and number then
+		return number
+	end
+	return fallback
+end
+FC.SafeNumber = SafeNumber
 
 -- ---------------------------------------------------------------- saved vars
 
@@ -43,6 +68,14 @@ local function InitDB()
 	end
 	if db.everShown == nil then
 		db.everShown = false
+	end
+	-- separate flag from v0.1.0's everShown: 0.1.0 set that at login without ever
+	-- showing the panel, so reusing it would suppress the first real open.
+	if db.autoOpened == nil then
+		db.autoOpened = false
+	end
+	if db.minimap == nil then
+		db.minimap = true
 	end
 	return db
 end
@@ -119,8 +152,10 @@ end
 -- ---------------------------------------------------------------- level drift
 
 function FC:PlayerLevel()
-	local level = UnitLevel and UnitLevel("player")
-	if type(level) == "number" and level > 0 then
+	local level = SafeNumber(function()
+		return UnitLevel and UnitLevel("player")
+	end, nil)
+	if level and level > 0 then
 		return level
 	end
 	return Data and Data.character.level or nil
@@ -139,15 +174,16 @@ function FC:SnapshotAgeDays()
 	if not stamp then return nil end
 	local y, m, d = string.match(stamp, "^(%d%d%d%d)%-(%d%d)%-(%d%d)")
 	if not y then return nil end
-	local thenTime = time({ year = tonumber(y), month = tonumber(m), day = tonumber(d), hour = 12 })
-	local nowTime = time()
+	local thenTime = SafeNumber(function()
+		return time({ year = tonumber(y), month = tonumber(m), day = tonumber(d), hour = 12 })
+	end, nil)
+	local nowTime = SafeNumber(function() return time() end, nil)
 	if not thenTime or not nowTime then return nil end
 	return math.floor((nowTime - thenTime) / 86400)
 end
 
 -- ---------------------------------------------------------------- zone filter
 
--- Zones worth visiting at the player's level (a little below, a little above).
 function FC:ZonesForLevel()
 	local out = {}
 	if not Data then return out end
@@ -162,11 +198,9 @@ function FC:ZonesForLevel()
 	return out
 end
 
--- Farm sources in the player's current band, ore/quest first.
 function FC:SourcesForLevel()
 	local out = {}
 	if not Data then return out end
-	local level = self:PlayerLevel() or 1
 	local zones = {}
 	for _, zone in ipairs(self:ZonesForLevel()) do
 		zones[zone.name] = true
@@ -184,22 +218,14 @@ end
 
 -- ---------------------------------------------------------------- chat views
 
-local function ColourByName(name)
-	if name == "EMPTY" or not name then
-		return "|cffff5555EMPTY|r"
-	end
-	return "|cffffffff" .. name .. "|r"
-end
-
 function FC:ChatStatus()
-	local data = Data
-	if not data then
+	if not Data then
 		Print("no data loaded (Data.lua missing)")
 		return
 	end
 	local done, open, skipped = self:PlanCounts()
-	Config("data build " .. tostring(data.generatedAt)
-		.. " · snapshot level " .. tostring(data.character.level)
+	Config("build " .. tostring(Data.generatedAt)
+		.. " · snapshot level " .. tostring(Data.character.level)
 		.. " · you are " .. tostring(self:PlayerLevel()))
 	Config("plan: " .. open .. " open, " .. done .. " done, " .. skipped .. " parked")
 	local age = self:SnapshotAgeDays()
@@ -211,7 +237,7 @@ end
 function FC:ChatPlan(maxPriority)
 	local entries = self:OpenPlan(maxPriority or 3)
 	if #entries == 0 then
-		Print("nothing open — run /fw reset to clear your tick marks")
+		Print("nothing open — /fw reset clears your tick marks")
 		return
 	end
 	Print("|cffffd200next " .. #entries .. " step(s)|r")
@@ -230,7 +256,12 @@ function FC:ChatGear()
 	end
 	Print("equipment (snapshot)")
 	for _, slot in ipairs(Data.equipment) do
-		Config(string.format("  %-11s %s", slot.label or slot.slot, ColourByName(slot.name)))
+		local label = slot.label or slot.slot
+		if slot.name then
+			Config(string.format("  %-11s |cffffffff%s|r", label, slot.name))
+		else
+			Config(string.format("  %-11s |cffff5555EMPTY|r", label))
+		end
 	end
 end
 
@@ -247,7 +278,7 @@ function FC:ChatFarm()
 	Print("|cffffd200farming at level " .. tostring(self:PlayerLevel()) .. "|r")
 	for _, zone in ipairs(zones) do
 		Config(string.format("  %s (%s-%s, %s) — %s",
-			zone.name, tostring(zone.levelMin), tostring(zone.levelMax),
+			tostring(zone.name), tostring(zone.levelMin), tostring(zone.levelMax),
 			tostring(zone.faction), tostring(zone.mining)))
 	end
 end
@@ -260,9 +291,43 @@ function FC:ChatProfs()
 	Print("professions")
 	for _, prof in ipairs(Data.professionPlan) do
 		Config(string.format("  %s %s/%s — %s",
-			prof.profession, tostring(prof.current), tostring(prof.cap),
+			tostring(prof.profession), tostring(prof.current), tostring(prof.cap),
 			tostring(prof.action)))
 	end
+end
+
+-- ---------------------------------------------------------------- diagnostics
+
+local function BuildInfo()
+	local version, build, _, interface = GetBuildInfo()
+	return tostring(version) .. " / interface " .. tostring(interface or build)
+end
+
+function FC:Diag()
+	Print("|cffffd200diagnostics|r")
+	Config("addon " .. tostring(self.version)
+		.. " · " .. tostring(GetAddOnMetadata and GetAddOnMetadata("ForeverCompanion", "Version") or "?")
+		.. " · client " .. BuildInfo())
+	if Data then
+		local done, open, skipped = self:PlanCounts()
+		Config("data ok · build " .. tostring(Data.generatedAt)
+			.. " · " .. #Data.plan .. " plan rows · " .. #Data.zones .. " zones")
+		Config("plan: " .. open .. " open · " .. done .. " done · " .. skipped .. " parked")
+		Config("character: " .. tostring(Data.character.name)
+			.. " · data level " .. tostring(Data.character.level)
+			.. " · live level " .. tostring(self:PlayerLevel()))
+	else
+		Config("|cffff5555data missing|r — Data.lua did not load")
+	end
+	if self.frame then
+		Config("panel: built · " .. (self.frame:IsShown() and "shown" or "hidden"))
+	else
+		Config("panel: not built yet (type /fw)")
+	end
+	Config("minimap button: " .. (self.minimapButton and "yes" or "no")
+		.. " · saved position: " .. (DB().position and "yes" or "no"))
+	Config("last UI error: " .. (self.lastError and ("|cffff5555" .. tostring(self.lastError) .. "|r") or "none"))
+	Config("slash commands: /fw, /forever")
 end
 
 -- ---------------------------------------------------------------- slash
@@ -288,10 +353,14 @@ local function Help()
 	Config("/fw prof — profession next steps")
 	Config("/fw done <#> — tick an item off   /fw undo <#>   /fw reset")
 	Config("/fw status — data build, plan counts, snapshot age")
+	Config("/fw diag — environment dump, useful when something feels broken")
+	Config("/fw button — show or hide the minimap button")
+	Config("/fw resetpos — put the panel back in the middle")
 end
 
 function FC:HandleCommand(message)
-	message = (message or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+	message = tostring(message or "")
+	message = message:lower():gsub("^%s+", ""):gsub("%s+$", "")
 	local command, rest = string.match(message, "^(%S*)%s*(.*)$")
 
 	if command == "" or command == "show" or command == "toggle" then
@@ -312,6 +381,27 @@ function FC:HandleCommand(message)
 		self:ChatProfs()
 	elseif command == "status" then
 		self:ChatStatus()
+	elseif command == "diag" then
+		self:Diag()
+	elseif command == "resetpos" then
+		if self.ResetPosition then
+			self:ResetPosition()
+		end
+		DB().position = nil
+		Print("panel position reset")
+	elseif command == "button" then
+		local db = DB()
+		if rest == "on" then
+			db.minimap = true
+		elseif rest == "off" then
+			db.minimap = false
+		else
+			db.minimap = not db.minimap
+		end
+		if self.SyncMinimapButton then
+			self:SyncMinimapButton()
+		end
+		Print("minimap button " .. (db.minimap and "on" or "off"))
 	elseif command == "done" or command == "undo" then
 		local entry = ResolveEntry(rest)
 		if not entry then
@@ -320,57 +410,81 @@ function FC:HandleCommand(message)
 		end
 		local isDone = (command == "done")
 		self:SetDone(entry.key, isDone)
-		if self.frame and self.frame.Refresh then self.frame:Refresh() end
+		self:RefreshPanel()
 		Print((isDone and "ticked off: " or "reopened: ") .. tostring(entry.target))
 	elseif command == "reset" then
 		DB().done = {}
-		if self.frame and self.frame.Refresh then self.frame:Refresh() end
+		self:RefreshPanel()
 		Print("all tick marks cleared")
-	elseif command == "debug" then
-		local db = DB()
-		db.debug = not db.debug
-		Print("debug " .. (db.debug and "on" or "off"))
 	else
 		Help()
 	end
 end
 
+function FC:RefreshPanel()
+	if self.frame and self.frame.Refresh then
+		local ok, err = pcall(self.frame.Refresh, self.frame)
+		if not ok then
+			self.lastError = tostring(err)
+			Print("|cffff5555refresh failed:|r " .. tostring(err))
+		end
+	end
+end
+
 -- ---------------------------------------------------------------- events
+
+local function OnLogin()
+	InitDB()
+	if not Data then
+		Print("|cffff5555Data.lua did not load|r — re-run scripts/build_addon_data.py")
+		return
+	end
+	local _, open = FC:PlanCounts()
+	local stale = FC:StaleLevelBy()
+	Print("v" .. FC.version .. " loaded · " .. open .. " step(s) open · "
+		.. "|cff33ff99/fw|r for the panel")
+	if stale and stale > 0 then
+		Print("|cffffcc00your data is a level-" .. tostring(Data.character.level)
+			.. " snapshot and you are level " .. tostring(FC:PlayerLevel())
+			.. " — re-run the armory refresh|r")
+	end
+	if FC.SyncMinimapButton then
+		FC:SyncMinimapButton()
+	end
+	-- Open once on the very first login so the addon is impossible to miss.
+	if not DB().autoOpened and FC.Toggle then
+		DB().autoOpened = true
+		DB().everShown = true
+		FC:Toggle()
+	end
+end
 
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 
 eventFrame:SetScript("OnEvent", function(_, event, arg1)
-	if event == "ADDON_LOADED" then
-		if arg1 == "ForeverCompanion" then
-			InitDB()
+	local ok, err = pcall(function()
+		if event == "ADDON_LOADED" then
+			if arg1 == "ForeverCompanion" then
+				InitDB()
+			end
+		elseif event == "PLAYER_LOGIN" then
+			OnLogin()
 		end
-	elseif event == "PLAYER_LOGIN" then
-		InitDB()
-		if not Data then
-			Print("Data.lua did not load — re-run scripts/build_addon_data.py")
-			return
-		end
-		local done, open = FC:PlanCounts()
-		local stale = FC:StaleLevelBy()
-		local hint = "|cff33ff99/fw|r for the panel, |cff33ff99/fw next|r in chat"
-		if stale and stale > 0 then
-			Print("your data is a level-" .. tostring(Data.character.level)
-				.. " snapshot and you are level " .. tostring(FC:PlayerLevel())
-				.. ". " .. open .. " steps still open — " .. hint)
-			Print("|cffffcc00re-run the armory refresh to update the plan|r")
-		elseif open > 0 then
-			Print(open .. " upgrade step(s) open — " .. hint)
-		end
-		if not DB().everShown then
-			DB().everShown = true
-		end
+	end)
+	if not ok then
+		FC.lastError = tostring(err)
+		Print("|cffff5555error|r in " .. tostring(event) .. ": " .. tostring(err))
 	end
 end)
 
 SLASH_FOREVERCOMPANION1 = "/fw"
 SLASH_FOREVERCOMPANION2 = "/forever"
 SlashCmdList["FOREVERCOMPANION"] = function(message)
-	FC:HandleCommand(message)
+	local ok, err = pcall(FC.HandleCommand, FC, message)
+	if not ok then
+		FC.lastError = tostring(err)
+		Print("|cffff5555error|r: " .. tostring(err))
+	end
 end

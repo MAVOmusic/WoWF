@@ -71,6 +71,13 @@ def main() -> int:
     text = harness.GetChatText(harness)
     check("PLAYER_LOGIN prints a plan hint", "upgrade step" in text or "/fw" in text, text[:90])
 
+    print("\nFirst-login behaviour")
+    autopanel = lua.globals()._G["ForeverCompanionFrame"]
+    check("panel auto-opens on first login",
+          autopanel is not None and bool(autopanel.IsShown(autopanel)))
+    check("minimap button created",
+          lua.eval("ForeverCompanion.minimapButton ~= nil"))
+
     print("\nSlash commands")
     slash = lua.globals().SlashCmdList["FOREVERCOMPANION"]
 
@@ -110,6 +117,16 @@ def main() -> int:
         out = harness.GetChatText(harness)
         check(f"/fw {command}", needle in out.lower(), out[:80].replace("\n", " / "))
 
+    harness.ResetChat(harness)
+    slash("diag")
+    out = harness.GetChatText(harness)
+    check("/fw diag reports the environment",
+          "diagnostics" in out.lower() and "data ok" in out.lower(), out[:120].replace("\n", " / "))
+
+    harness.ResetChat(harness)
+    slash("resetpos")
+    check("/fw resetpos runs", "reset" in harness.GetChatText(harness).lower())
+
     print("\nTick-off flow")
     fc = lua.globals().ForeverCompanion
     open_before = len(fc.OpenPlan(fc, 3))
@@ -136,6 +153,23 @@ def main() -> int:
     panel.Refresh(panel)
     titles = " ".join((panel.rows[i].title.text or "") for i in range(1, len(panel.rows) + 1))
     check("live item link overrides the snapshot name", "Green Iron Helm" in titles)
+
+    print("\nSecret values (Midnight client)")
+
+    lua.execute("Harness.returnSecret = true")
+    harness.ResetChat(harness)
+    try:
+        harness.FireEvent(harness, "PLAYER_LOGIN")
+    except lupa.LuaError as exc:
+        check("login survives a secret UnitLevel", False, str(exc))
+    else:
+        out = harness.GetChatText(harness)
+        check("login survives a secret UnitLevel", "loaded" in out.lower(),
+              out[:90].replace("\n", " / "))
+    check("falls back to the snapshot level",
+          int(lua.eval("ForeverCompanion:PlayerLevel()") or 0) == 23,
+          str(lua.eval("ForeverCompanion:PlayerLevel()")))
+    lua.execute("Harness.returnSecret = false")
 
     print("\nMissing-slot handling")
     lua.execute("Harness.links[1] = nil")
