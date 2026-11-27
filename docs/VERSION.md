@@ -5,6 +5,36 @@ One entry per shipped increment. Newest first. Never delete.
 
 ---
 
+## v0.2.1 — 2026-11-27 — "Companion v0.1.1: make it visible"
+
+**Status:** current · **Addon version:** 0.1.1
+
+Reported symptom: addon enabled in the list, nothing on screen, nothing in chat.
+
+### Fixed
+- **Secret-value crash path.** `UnitLevel` was read unguarded; on the Midnight client a
+  secret value would abort the whole `PLAYER_LOGIN` handler before any message printed —
+  exactly the reported "does nothing" symptom. All unit reads now go through
+  `FC.SafeNumber` (pcall + `issecretvalue` + tonumber fallback to the snapshot level).
+- **Silent failures.** Event and slash handlers are wrapped in `pcall` and print the error.
+- **Auto-open never fired.** v0.1.0 set `everShown` at login without ever showing the
+  panel, so the first-open check could never be true. Replaced with a new `autoOpened` flag.
+- **Close button never created.** The code tested a global (`UIPanelCloseButton`) that does
+  not exist; it is a template *string*. Now created inside pcall.
+- Panel raised to `FULLSCREEN_DIALOG` + toplevel so it is not buried behind other windows.
+
+### Added
+- **Minimap button** (`/fw button`) so there is always a visible entry point.
+- **`/fw diag`** — version, client build, data state, plan counts, panel state, last error.
+- **`/fw resetpos`** — recover a panel dragged off-screen.
+- **Load banner** at login: "v0.1.1 loaded · N step(s) open" — proves the addon runs.
+
+### Verified
+- Harness extended to 33 assertions: auto-open, minimap button, `/fw diag`, `/fw resetpos`,
+  and a simulated **secret `UnitLevel`** that must not break login.
+
+---
+
 ## v0.2.0 — 2026-11-27 — "In-game companion"
 
 **Status:** current · **Character level:** 23 · **Addon version:** 0.1.0

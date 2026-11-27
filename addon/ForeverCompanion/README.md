@@ -37,11 +37,28 @@ needs a full client restart.
 | `/fw prof` | profession next steps |
 | `/fw done <#>` / `/fw undo <#>` / `/fw reset` | tick steps off (saved across sessions) |
 | `/fw status` | data build date, open/done counts, snapshot age |
+| `/fw diag` | environment dump: versions, data, panel state, last error |
+| `/fw button` | show/hide the minimap button |
+| `/fw resetpos` | put the panel back in the middle of the screen |
 
 `/forever` works as an alias. `/fw help` prints the list.
 
+## When nothing appears
+
+1. `/reload` (full client restart if you replaced the TOC). The addon prints
+   `Forever Companion v0.1.1 loaded · N step(s) open` at login — if you don't see that
+   line, the addon is not running, not the UI.
+2. `/fw` opens the panel; `/fw next` prints the plan into chat.
+3. Look for the round map icon at the bottom of the minimap.
+4. Still nothing: `/fw diag` and check the last two lines. Turn errors on with
+   `/console scriptErrors 1` so any Lua error is printed instead of swallowed.
+
 ## Design constraints (read before extending)
 
+- **Secret values are treated as absent.** Midnight can return opaque values from unit
+  APIs; `FC.SafeNumber` wraps every read so a secret never reaches a comparison.
+- **Every command and event handler runs inside `pcall`** and reports the failure in
+  chat, so a broken path is visible instead of silent.
 - **No combat log, no unit frames.** Forever runs on the Midnight client where the
   combat log is closed to addons and some values are "secret". This addon only reads
   item links and static data.

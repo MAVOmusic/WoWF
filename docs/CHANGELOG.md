@@ -9,6 +9,32 @@ Tags: `[data]` armory refresh · `[model]` schema/DB · `[xlsx]` workbook · `[d
 
 ---
 
+## 2026-11-27 — v0.2.1 — Companion v0.1.1: make it visible
+
+### Reported
+- Addon shows in the AddOn list and is enabled, but "not showing anything, not doing anything".
+
+### Diagnosed
+- Two independent causes, both plausible for a completely silent addon:
+  1. `UnitLevel` read without a guard — a Midnight *secret value* aborts the
+     `PLAYER_LOGIN` handler before the chat message, so nothing is ever printed.
+  2. The first-open flag `everShown` was already set to true by v0.1.0 without a panel
+     ever being shown, so the auto-open could never trigger.
+- Also found: the close button check tested a non-existent global, and nothing offered a
+  permanent on-screen entry point.
+
+### Changed
+- `addon/ForeverCompanion/Core.lua` — `SafeNumber` wrapper, `pcall` around every event and
+  slash path with chat reporting, `autoOpened` flag, `/fw diag`, minimap sync, load banner.
+- `addon/ForeverCompanion/UI.lua` — minimap button, close button fix, FULLSCREEN_DIALOG
+  strata + toplevel, `RefreshPanel` wrapper, `ResetPosition`, guarded highlight textures.
+- `addon/ForeverCompanion/ForeverCompanion.toc` — version 0.1.1.
+- `tools/lua_harness/` — stub gains Minimap/GameTooltip/metadata/`issecretvalue`/
+  `SetFrameLevel`; harness gains 6 checks (33 total).
+- `addon/ForeverCompanion/README.md` — "When nothing appears" section.
+
+---
+
 ## 2026-11-27 — v0.2.0 — In-game companion
 
 Second build, same day as v0.1.0.

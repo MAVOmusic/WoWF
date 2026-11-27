@@ -4,7 +4,7 @@
 > It is not a summary of the code — it is the memory of *why* the repo exists.
 > Never delete entries. Append, then correct.
 
-Last updated: **2026-11-27** · Repo version: **v0.2.0**
+Last updated: **2026-11-27** · Repo version: **v0.2.1**
 
 ---
 
@@ -63,6 +63,9 @@ no realm field and no numeric character id. **Identity = `region + slug`.**
 | D9 | 2026-11-27 | The addon ships a **generated** `Data.lua`, never hand-edited | Same JSON feeds DB, workbook and addon — one source of truth |
 | D10 | 2026-11-27 | Addon verification = headless Lua harness (`tools/lua_harness`) | No game client here; the harness proves boot/render/commands, not looks |
 | D11 | 2026-11-27 | Big data addons (Questie, Bagnon, Auctionator) stay; the companion owns only the planning layer | Merging quest/auction databases is not worth the maintenance |
+| D12 | 2026-11-27 | Treat Midnight "secret values" as absent; all unit reads go through `SafeNumber` | An unguarded `UnitLevel` comparison silently killed the login handler (v0.2.1) |
+| D13 | 2026-11-27 | Every event/slash path is pcall-wrapped and reports failures in chat | A silent addon is undebuggable; the user sees one line instead of nothing |
+| D14 | 2026-11-27 | The panel auto-opens once (`autoOpened`), plus a minimap button | "Enabled but nothing happened" was the actual first-run experience |
 
 ---
 
@@ -94,8 +97,8 @@ One command for steps 3–5: `bash scripts/refresh.sh`.
 ## 6. Next actions
 
 - [ ] Fold the small QoL addons into the companion (see `docs/ADDONS.md` backlog).
-- [ ] Load the addon once in the real client and report anything that looks wrong — the
-      harness cannot judge layout.
+- [ ] Load v0.1.1 in the real client; expect the load banner + one auto-open.
+      If still silent, `/fw diag` output is the next input we need.
 - [ ] Fill `item_id` for equipped items as they're confirmed in game.
 - [ ] Verify the `classic`-tagged candidates in `data/catalog/upgrade_plan.json` (level 24–32 push).
 - [ ] Add Blackfathom Deeps / Gnomeregan loot tables once item names are confirmed.
