@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "_note": "Next actionable step per profession at the snapshot. Values must match data/characters/us/mavo-music.json professions.",
+  "professions": [
+    {
+      "profession": "Mining",
+      "current": 112,
+      "cap": 150,
+      "band": "Tin/Silver (65-125) → Iron (125-175)",
+      "next_action": "Finish 112 → 125 on Tin/Silver in Loch Modan or Westfall, then train and switch to Iron in Wetlands.",
+      "materials": "Tin Ore, Silver Ore, then Iron Ore",
+      "zone": "Loch Modan / Westfall → Wetlands",
+      "priority": 1,
+      "verification": "classic",
+      "notes": "Iron Ore feeds every Blacksmithing upgrade in the plan."
+    },
+    {
+      "profession": "Blacksmithing",
+      "current": 104,
+      "cap": 150,
+      "band": "Bronze (65-125) → Iron/Steel (125-165)",
+      "next_action": "Spam bronze crafts to 125, then iron items — the same crafts produce your Green Iron upgrades.",
+      "materials": "Bronze Bar (Copper + Tin), then Iron Ore / Heavy Stone",
+      "zone": "Any forge (Stormwind / Ironforge)",
+      "priority": 1,
+      "verification": "classic",
+      "notes": "Level and gear come from the same ore — best efficiency lever you have."
+    },
+    {
+      "profession": "Cooking",
+      "current": 150,
+      "cap": 150,
+      "band": "Journeyman cap reached",
+      "next_action": "Train Expert Cooking (225 cap) when available, then cook Sagefish / Bristle Whisker Catfish.",
+      "materials": "Raw Sagefish, Bristle Whisker Catfish",
+      "zone": "Any cooking fire",
+      "priority": 3,
+      "verification": "classic",
+      "notes": "Capped — no more skill possible until the Expert tier is trained."
+    },
+    {
+      "profession": "Fishing",
+      "current": 150,
+      "cap": 150,
+      "band": "Journeyman cap reached",
+      "next_action": "Train Expert Fishing (225) and keep farming Oily Blackmouth / Sagefish schools for gold.",
+      "materials": "Oily Blackmouth, Raw Sagefish",
+      "zone": "Westfall coast / Loch Modan",
+      "priority": 2,
+      "verification": "classic",
+      "notes": "Highest gold-per-minute activity available at level 23."
+    },
+    {
+      "profession": "First Aid",
+      "current": 130,
+      "cap": 150,
+      "band": "Wool (80-150)",
+      "next_action": "Wool Bandages to 150, then Silk Bandages (150-180) once silk starts dropping.",
+      "materials": "Wool Cloth, then Silk Cloth",
+      "zone": "Redridge Mountains / Duskwood",
+      "priority": 3,
+      "verification": "classic",
+      "notes": "Bandages are free self-healing for a warrior with no self-heal."
+    }
+  ]
+}

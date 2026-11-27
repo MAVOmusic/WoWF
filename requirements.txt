@@ -1,0 +1,3 @@
+# Only the Excel exporter/importer needs a third-party package.
+# Everything else (SQLite, JSON) is Python standard library.
+openpyxl>=3.1
