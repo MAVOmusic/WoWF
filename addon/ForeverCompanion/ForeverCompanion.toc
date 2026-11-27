@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Forever Companion
+## Notes: What to equip next, where to get it, where to farm, and what to train. Data comes from the WoWF repo.
+## Author: MAVOmusic
+## Version: 0.1.0
+## IconTexture: Interface\Icons\INV_Misc_Map_01
+## SavedVariables: ForeverCompanionDB
+## X-Category: Interface Enhancements
+
+Data.lua
+Core.lua
+UI.lua
