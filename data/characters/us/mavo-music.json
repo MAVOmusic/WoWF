@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "capture_sha256": "d60f3d69d7ed6009e5f839459362558643c3ff1754eca88b0da8aae2acce55c1",
   "character": {
     "key": "us/mavo-music",
     "slug": "mavo-music",

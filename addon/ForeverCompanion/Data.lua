@@ -1,9 +1,9 @@
 -- Data.lua — GENERATED FILE, do not edit by hand.
 -- Source: data/characters + data/catalog  →  scripts/build_addon_data.py
--- Generated: 2026-11-27
+-- Generated: 2026-11-28
 
 ForeverCompanionData = {
-  generatedAt = "2026-11-27",
+  generatedAt = "2026-11-28",
   characterKey = "us/mavo-music",
   snapshotFetchedAt = "2026-11-27T00:00:00Z",
   character = {

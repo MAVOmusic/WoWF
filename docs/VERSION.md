@@ -5,6 +5,34 @@ One entry per shipped increment. Newest first. Never delete.
 
 ---
 
+## v0.2.2 — 2026-11-27 — "One-file install"
+
+**Status:** current · **Addon version:** 0.1.1 · **Package:** `release/ForeverCompanion-0.1.1.zip`
+
+### Added
+- **`scripts/build_addon_zip.py`** — packages the addon into
+  `release/ForeverCompanion-<version>.zip` with a top-level `ForeverCompanion/` folder,
+  a fixed timestamp and sorted entries, so the same version always produces the same
+  bytes (verified: identical sha256 across two full pipeline runs). Integrity-tested with
+  `zipfile.testzip()`, prints sha256.
+- **`install-addon.bat`** — Windows: finds the newest `release\ForeverCompanion-*.zip`,
+  extracts it into `%ProgramFiles(x86)%\World of Warcraft\_forever_\Interface\AddOns`,
+  or into any path passed as the first argument.
+- `refresh.sh` is now 5 steps; packaging is the last one.
+- GitHub Release `companion-v0.1.1` carries the same zip as a direct download.
+
+### Fixed
+- **Snapshot dates were being faked.** `parse_armory.py` stamped `fetched_at` with today's
+  date on every run, even when the armory capture had not changed. It now stores
+  `capture_sha256` and only advances the date when the raw capture actually differs.
+
+### Verified
+- Zip round-trip: extract into a clean directory → `ForeverCompanion/ForeverCompanion.toc`
+  at the archive root, 5 files, `testzip()` clean.
+- Harness still 33/33.
+
+---
+
 ## v0.2.1 — 2026-11-27 — "Companion v0.1.1: make it visible"
 
 **Status:** current · **Addon version:** 0.1.1
