@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -210,7 +211,7 @@ def parse_professions(text: str) -> list[dict]:
     return out
 
 
-def parse_character(text: str, previous: dict) -> dict:
+def parse_character(text: str, previous: dict, capture_hash: str) -> dict:
     char = dict(previous.get("character", {}))
     m = re.search(r"^#\s+(.+?)\n\s*\n(US|EU)\b", text, re.M)
     if not m:
@@ -242,7 +243,14 @@ def parse_character(text: str, previous: dict) -> dict:
         char["item_level"] = int(m.group(1))
     char["key"] = f"{char.get('region', 'us')}/{slug(char.get('display_name', ''))}"
     char["slug"] = char["key"].split("/", 1)[1]
-    char["fetched_at"] = datetime.now().strftime("%Y-%m-%dT00:00:00Z")
+    # Only claim a fresh capture when the raw file actually changed. Re-running the
+    # pipeline on an unchanged capture must not rewrite the snapshot date.
+    previous_char = previous.get("character", {})
+    same_capture = previous.get("capture_sha256") == capture_hash
+    if same_capture and previous_char.get("fetched_at"):
+        char["fetched_at"] = previous_char["fetched_at"]
+    else:
+        char["fetched_at"] = datetime.now().strftime("%Y-%m-%dT00:00:00Z")
     return char
 
 
@@ -287,10 +295,12 @@ def main() -> None:
     text = args.raw.read_text(encoding="utf-8")
     old = json.loads(args.out.read_text(encoding="utf-8")) if args.out.exists() else {}
 
-    char = parse_character(text, old)
+    capture_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    char = parse_character(text, old, capture_hash)
     equipment = parse_items_section(text)
     doc = {
         "schema_version": old.get("schema_version", 1),
+        "capture_sha256": capture_hash,
         "character": char,
         "stats": parse_stats(text),
         "talents": parse_talents(text, old.get("talents")),
@@ -305,6 +315,8 @@ def main() -> None:
     # report what changed
     changes = []
     old_char = old.get("character", {})
+    if old.get("capture_sha256") and old.get("capture_sha256") != capture_hash:
+        changes.append("armory capture changed (new snapshot)")
     for f in ("level", "item_level", "guild", "last_online"):
         if old_char.get(f) != char.get(f):
             changes.append(f"{f}: {old_char.get(f)!r} -> {char.get(f)!r}")

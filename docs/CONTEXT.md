@@ -4,7 +4,7 @@
 > It is not a summary of the code — it is the memory of *why* the repo exists.
 > Never delete entries. Append, then correct.
 
-Last updated: **2026-11-27** · Repo version: **v0.2.1**
+Last updated: **2026-11-27** · Repo version: **v0.2.2**
 
 ---
 
@@ -21,6 +21,7 @@ Two deliverables, one source of truth:
 | SQLite DB | `data/wowf.db` | Queryable model (built, not hand-edited) |
 | Excel workbook | `data/wowf.xlsx` | Human view + editable on the go |
 | In-game addon | `addon/ForeverCompanion/` | Same plan, inside the client |
+| Installable package | `release/ForeverCompanion-<ver>.zip` | One file to drop into AddOns (GitHub release asset too) |
 | Canonical JSON | `data/characters/`, `data/catalog/` | Editable source of truth |
 
 Rule: **JSON is authoritative → DB and XLSX are generated.** Edits made in Excel are
@@ -66,6 +67,8 @@ no realm field and no numeric character id. **Identity = `region + slug`.**
 | D12 | 2026-11-27 | Treat Midnight "secret values" as absent; all unit reads go through `SafeNumber` | An unguarded `UnitLevel` comparison silently killed the login handler (v0.2.1) |
 | D13 | 2026-11-27 | Every event/slash path is pcall-wrapped and reports failures in chat | A silent addon is undebuggable; the user sees one line instead of nothing |
 | D14 | 2026-11-27 | The panel auto-opens once (`autoOpened`), plus a minimap button | "Enabled but nothing happened" was the actual first-run experience |
+| D15 | 2026-11-27 | The addon ships as a reproducible zip (`release/`) + GitHub release asset | Downloading 5 files by hand from the repo is not an install path |
+| D16 | 2026-11-27 | `fetched_at` only advances when the capture hash changes | A rebuild must never claim a fresher armory snapshot than we actually took |
 
 ---
 

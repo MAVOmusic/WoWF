@@ -13,6 +13,22 @@ on the go), an **in-game addon** (the same plan inside the client), and canonica
 
 ---
 
+## Download the addon
+
+**[ForeverCompanion-0.1.1.zip](https://github.com/MAVOmusic/WoWF/raw/main/release/ForeverCompanion-0.1.1.zip)** — one file, contains the `ForeverCompanion/` folder.
+
+Windows, from a copy of this repo (uses the newest zip and extracts it into the client):
+
+```bat
+install-addon.bat
+```
+
+Or by hand: unzip so you end up with
+`...\World of Warcraft\_forever_\Interface\AddOns\ForeverCompanion\ForeverCompanion.toc`.
+
+Rebuild the zip after any addon change with `python3 scripts/build_addon_zip.py`
+(or just run `scripts/refresh.sh`, which packages it as its last step).
+
 ## Quickstart
 
 ```bash
@@ -30,6 +46,7 @@ python3 -c "import sqlite3; ..."       # or just open data/wowf.xlsx
 | Rebuild the workbook | `python3 scripts/export_xlsx.py` |
 | Apply your Excel edits | `python3 scripts/import_xlsx.py` (add `--dry-run` first) |
 | Compile addon data | `python3 scripts/build_addon_data.py` |
+| Package the addon zip | `python3 scripts/build_addon_zip.py` |
 | Test the addon headlessly | `python3 tools/lua_harness/run_harness.py` |
 
 ## Files
@@ -52,6 +69,8 @@ data/wowf.db                       generated SQLite database
 data/wowf.xlsx                     generated workbook (12 sheets)
 
 addon/ForeverCompanion/            in-game panel: Next / Gear / Farm / Profs  (/fw)
+release/ForeverCompanion-*.zip     packaged addon, ready to drop into AddOns
+install-addon.bat                  Windows: extract the zip into the client
 tools/lua_harness/                 headless WoW API stub + addon smoke test
 
 scripts/                           parse_armory · build_db · export_xlsx · import_xlsx
@@ -64,6 +83,12 @@ scripts/                           parse_armory · build_db · export_xlsx · im
 what to equip next, where to get it, where to farm in your level band, and the next step
 for each profession. It targets **Interface 16001** — Forever 1.60.1 runs on the Midnight
 client with Mainline APIs, so Classic-era (1.12) addons do not load.
+
+```bat
+install-addon.bat
+```
+
+or, if you prefer copying the folder directly:
 
 ```
 xcopy /E /I /Y addon\ForeverCompanion "C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\ForeverCompanion"

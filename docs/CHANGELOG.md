@@ -9,6 +9,35 @@ Tags: `[data]` armory refresh · `[model]` schema/DB · `[xlsx]` workbook · `[d
 
 ---
 
+## 2026-11-27 — v0.2.2 — One-file install
+
+### Requested
+- "Make sure to have a downloadable zip file with the companion. I have to download file
+  by file now and it's bad."
+
+### Added
+- `[tooling]` `scripts/build_addon_zip.py` → `release/ForeverCompanion-0.1.1.zip`
+  (15.8 KB, 5 files, `ForeverCompanion/` at the archive root). Deterministic: fixed
+  timestamps + sorted entries, so re-running the pipeline yields an identical sha256.
+  Prints the hash and validates the archive.
+- `[tooling]` `install-addon.bat` — Windows one-double-click install, default path or a
+  path you pass in; picks the newest zip automatically so it survives version bumps.
+- `[tooling]` `refresh.sh` step 5 packages the zip.
+- GitHub Release **companion-v0.1.1** with the zip attached as a download asset.
+- `README.md` — download section at the top, with the raw GitHub link and the .bat.
+
+### Fixed
+- `[data]` `parse_armory.py` stamped `fetched_at` with the run date even when the armory
+  capture had not changed, which would have made the snapshot look fresher than it was.
+  It now keeps `capture_sha256` and only advances the date on a changed capture.
+
+### Note
+- Build stamps (`generatedAt`, `built_at`) follow the runner clock, which has rolled to
+  2026-11-28 UTC; the armory capture itself is still the 2026-11-27 one and the data now
+  records that correctly.
+
+---
+
 ## 2026-11-27 — v0.2.1 — Companion v0.1.1: make it visible
 
 ### Reported
