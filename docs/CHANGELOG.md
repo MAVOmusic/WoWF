@@ -23,7 +23,10 @@ Tags: `[data]` armory refresh · `[model]` schema/DB · `[xlsx]` workbook · `[d
 - `[tooling]` `install-addon.bat` — Windows one-double-click install, default path or a
   path you pass in; picks the newest zip automatically so it survives version bumps.
 - `[tooling]` `refresh.sh` step 5 packages the zip.
-- GitHub Release **companion-v0.1.1** with the zip attached as a download asset.
+- GitHub Release **companion-v0.1.1** — landing page with the install steps and a direct
+  link to the committed zip. The asset upload itself is blocked from this sandbox
+  (`uploads.github.com` is not reachable), so attaching it is a 10-second manual step:
+  release page → Edit → drop the zip in.
 - `README.md` — download section at the top, with the raw GitHub link and the .bat.
 
 ### Fixed

@@ -19,7 +19,10 @@ One entry per shipped increment. Newest first. Never delete.
   extracts it into `%ProgramFiles(x86)%\World of Warcraft\_forever_\Interface\AddOns`,
   or into any path passed as the first argument.
 - `refresh.sh` is now 5 steps; packaging is the last one.
-- GitHub Release `companion-v0.1.1` carries the same zip as a direct download.
+- GitHub Release `companion-v0.1.1` is the landing page; it links the committed zip
+  (`/raw/main/release/...`) because uploading a release *asset* needs `uploads.github.com`,
+  which this build sandbox cannot reach. Manual step if you want the asset attached:
+  open the release page → Edit → drag the zip in.
 
 ### Fixed
 - **Snapshot dates were being faked.** `parse_armory.py` stamped `fetched_at` with today's
